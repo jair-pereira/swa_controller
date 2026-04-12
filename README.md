@@ -19,7 +19,7 @@ At this point, I thought this project needed no further development. However, th
 This project exists to address this limitation by moving timing control to the AVR, while keeping the command logic on the PC.
 
 ## Overview
-PC ─serial─> AVR ─usb─> Switch
+PC ─serial─> AVR ─usb─> SWITCHit
 
 - **PC (Python):** Defines the automation logic, sends button presses and their execution timing
 - **AVR:** Receives the button presses and updates its state according to the provided timing
@@ -35,3 +35,23 @@ PC ─serial─> AVR ─usb─> Switch
 - Python and the pyserial library
 - A software to run containers (Colima, Docker, others) 
     - Alternatively, AVR-GCC
+
+## Compiling the AVR code
+Build the docker image:
+```bash
+docker build -t avrcompiler .
+```
+
+Mounts the current directory into the container and compile the code:
+```bash
+docker run -it --rm -v $(pwd):/work avrcompiler make
+```
+
+## Automation with Python
+todo
+
+## Done
+todo
+
+## Todo
+todo :)
