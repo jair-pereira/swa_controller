@@ -26,6 +26,8 @@ PC ─serial─> AVR ─usb─> SWITCH
 - **PC (Python):** Defines the automation logic, sends button presses and their execution timing
 - **AVR:** Receives the button presses and updates its state according to the provided timing
 
+I am using a Teensy++ 2.0 which runs at 16 MHz. Any other AVR that operates at the same frequency is compatible (Arduino Nano). AVRs that runs on higher frequency may need small adjustment in code (likely Timer1 prescaler only).
+
 ## Requirement
 ### Hardware
 - 1x Teensy (at90usb1286) or Arduino (atmega32u4)
@@ -52,8 +54,14 @@ docker run -it --rm -v $(pwd):/work avrcompiler make
 ## Automation with Python
 todo
 
-## Done
-todo
+## Completed
+todo :)
 
 ## Todo
-todo :)
+- [ ] Timer
+- [ ] Remove serial packet parsing away from the ISR
+- [ ] Bytes for the serial packets instead of strings
+- [ ] AVR should receive commands in the form [TARGET][VALUE][TIME_MS]
+    - e.g.: press BTN X at 100ms mark
+- [ ] Adjust python model to communicate with the AVR
+- [ ] Add usage exampless
