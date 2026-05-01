@@ -1,6 +1,6 @@
-# AutoSW
+# SWA Controller
 
-**!!under development!!**
+⚠️ **under development** ⚠️
 
 ## About
 This project enables a computer to send controller inputs to your Switch via an AVR microcontroller (arduino, teensy, etc).
@@ -26,14 +26,14 @@ PC ─serial─> AVR ─usb─> SWITCH
 - **PC (Python):** Defines the automation logic, sends button presses and their execution timing
 - **AVR:** Receives the button presses and updates its state according to the provided timing
 
-I am using a Teensy++ 2.0 which runs at 16 MHz. Any other AVR that operates at the same frequency is compatible (Arduino Nano). AVRs that runs on higher frequency may need small adjustment in code (likely Timer1 prescaler only).
-
 ## Requirement
 ### Hardware
 - 1x Teensy (at90usb1286) or Arduino (atmega32u4)
 - 1x USB to Serial Adapter
 - 1x USB Micro-B Cable
 - 2x Male-Female Breadboard Wires
+
+I am using a Teensy++ 2.0 which runs at 16 MHz. Any other AVR that operates at the same frequency is compatible (Arduino Nano). AVRs that runs on higher frequency may need small adjustment in code (likely Timer1 prescaler only).
 
 ### Software
 - Python and the pyserial library
@@ -43,12 +43,12 @@ I am using a Teensy++ 2.0 which runs at 16 MHz. Any other AVR that operates at t
 ## Compiling the AVR code
 Build the docker image:
 ```bash
-docker build -t avrcompiler .
+docker build -t gccavr .
 ```
 
-Mounts the current directory into the container and compile the code:
+Mount the current directory into the container and compile the code:
 ```bash
-docker run -it --rm -v $(pwd):/work avrcompiler make
+docker run -it --rm -v $(pwd):/work gccavr make
 ```
 
 ## Automation with Python
@@ -65,3 +65,14 @@ todo :)
     - e.g.: press BTN X at 100ms mark
 - [ ] Adjust python model to communicate with the AVR
 - [ ] Add usage exampless
+
+## References
+1. **Making Embedded Systems** by Elecia White. My main guide for embedded systems concepts and design.
+2. [AVR Microcontroller Manual](https://www.pjrc.com/teensy/at90usb1286.pdf) for AVR-specific details, especially Timer1 implementation.
+
+Parts of the code include comments of my studying notes.
+
+## Licenses
+- [This](https://github.com/jair-pereira/swa_controller) repository is under [GLP-3.0](LICENSE).
+- [Switch-Fightstick](https://github.com/ebith/Switch-Fightstick) is under [MIT License](https://github.com/progmem/Switch-Fightstick/blob/master/LICENSE).
+- [LUFA](https://github.com/abcminiuser/lufa) is under a [modified MIT License](lib/external/lufa/LUFA/License.txt).
