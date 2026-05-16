@@ -18,9 +18,12 @@ F_CPU        = 16000000
 F_USB        = $(F_CPU)
 OPTIMIZATION = s
 TARGET       = build/Joystick
-SRC          = Joystick.c Descriptors.c $(LUFA_SRC_USB) $(LUFA_SRC_SERIAL) $(wildcard lib/*.c)
-LUFA_PATH    = ./lib/lufa/LUFA
-CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/ -Ilib/
+
+LIB_DIRS     := $(wildcard lib/*/)
+SRC          = Joystick.c Descriptors.c $(LUFA_SRC_USB) $(LUFA_SRC_SERIAL) $(wildcard $(addsuffix *.c,$(LIB_DIRS)))
+LUFA_PATH    = ./lib/external/lufa/LUFA
+
+CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/ $(addprefix -I,$(LIB_DIRS))
 LD_FLAGS     =
 
 # Default target
