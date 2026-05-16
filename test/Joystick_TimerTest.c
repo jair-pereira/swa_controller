@@ -24,7 +24,7 @@ these buttons for our use.
  *  is responsible for the initial application hardware configuration.
  */
 
-  /*
+ /*
 	* This modified version of Joystick.c is under GPL-3.0 or later
 		Major Changes:
 		 - (2026 May) Implemented timed commands
@@ -47,26 +47,92 @@ these buttons for our use.
  */
 
 #include "Timer1.h"
-#include "Joystick.h"
+#include "../Joystick.h"
 
 uint16_t command_btn;
 uint8_t command_lx, command_ly, command_rx, command_ry, command_hat;
 
+typedef struct {
+	uint8_t target;
+	uint16_t value;
+	uint32_t time_ms;
+} TimedCommands;
+
+#define cmd_size 6
+static uint8_t cmd_next  = 0;
+static TimedCommands mycmds[cmd_size];
+static volatile uint32_t startTime;
+
+void TimedCommandList_Init(TimedCommands *cmds){
+    uint8_t i = 0;
+	cmds[i].target  = 0; // BTN
+	cmds[i].value   = 0x1000; // HOME
+	cmds[i].time_ms = 2000;
+
+	i++;
+	cmds[i].target  = 0; // BTN
+	cmds[i].value   = 0x00; // RELEASE
+	cmds[i].time_ms = 2060;
+
+	i++;
+	cmds[i].target  = 1; // HAT
+	cmds[i].value   = 0x02; // RIGHT
+	cmds[i].time_ms = 5000;
+
+	i++;
+	cmds[i].target  = 1; // HAT
+	cmds[i].value   = 0x08; // CENTER
+	cmds[i].time_ms = 5060;
+
+	i++;
+	cmds[i].target  = 1; // HAT
+	cmds[i].value   = 0x06; // LEFT
+	cmds[i].time_ms = 6000;
+
+	i++;
+	cmds[i].target  = 1; // HAT
+	cmds[i].value   = 0x08; // CENTER
+	cmds[i].time_ms = 6060;
+}
+
+void UpdateState(void){
+	uint32_t elapsed = get_current_ms() - startTime;
+
+	if(cmd_next < cmd_size && mycmds[cmd_next].time_ms <= elapsed){
+		switch(mycmds[cmd_next].target){
+			case 0: 
+				command_btn = mycmds[cmd_next].value;
+				break;
+			case 1:  
+				command_hat  = (uint8_t)mycmds[cmd_next].value;
+				break;
+		}
+		cmd_next++;
+	}
+	if(cmd_next>=cmd_size){
+		cmd_next = 2;
+		startTime = get_current_ms();
+	}
+}
+
 // Main entry point.
 int main(void) {
-  sei();
+	sei();
 
 	// We'll start by performing hardware and peripheral setup.
 	SetupHardware();
 	// We'll then enable global interrupts for our use.
 	GlobalInterruptEnable();
 
-
+	// Timer test
+	TimedCommandList_Init(mycmds);
 	SetupTimer1();
 
 	// Once that's done, we'll enter an infinite loop.
+	startTime = get_current_ms();
 	for (;;)
 	{
+		UpdateState();
 		// We need to run our task to process and deliver data for our IN and OUT endpoints.
 		HID_Task();
 		// We also need to run the main USB management task.

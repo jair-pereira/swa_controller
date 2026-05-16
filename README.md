@@ -54,11 +54,9 @@ docker run -it --rm -v $(pwd):/work gccavr make
 ## Automation with Python
 todo
 
-## Completed
-todo :)
-
 ## Todo
-- [ ] Timer
+- [X] Timer
+- [ ] Add a datastruct to store a list of commands to be executed
 - [ ] Remove serial packet parsing away from the ISR
 - [ ] Bytes for the serial packets instead of strings
 - [ ] AVR should receive commands in the form [TARGET][VALUE][TIME_MS]
