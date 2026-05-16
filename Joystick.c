@@ -31,9 +31,6 @@ uint8_t command_lx, command_ly, command_rx, command_ry, command_hat;
 
 // Main entry point.
 int main(void) {
-  Serial_Init(9600, false);
-  Serial_CreateStream(NULL);
-
   sei();
 
 	// We'll start by performing hardware and peripheral setup.
