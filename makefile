@@ -17,8 +17,8 @@ ARCH         = AVR8
 F_CPU        = 16000000
 F_USB        = $(F_CPU)
 OPTIMIZATION = s
-TARGET       = build/Joystick
 
+TARGET       = build/Joystick
 LIB_DIRS     := $(wildcard lib/*/)
 SRC          = Joystick.c Descriptors.c $(LUFA_SRC_USB) $(LUFA_SRC_SERIAL) $(wildcard $(addsuffix *.c,$(LIB_DIRS)))
 LUFA_PATH    = ./lib/external/lufa/LUFA
