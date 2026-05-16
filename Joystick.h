@@ -41,8 +41,6 @@
 #include <avr/wdt.h>
 #include <avr/power.h>
 #include <avr/interrupt.h>
-#include <string.h>
-
 
 #include <LUFA/Drivers/USB/USB.h>
 #include <LUFA/Drivers/Board/Joystick.h>
@@ -51,6 +49,8 @@
 #include <LUFA/Platform/Platform.h>
 
 #include "Descriptors.h"
+
+#include <inttypes.h>
 
 // Type Defines
 // Enumeration for joystick buttons.

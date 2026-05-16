@@ -24,56 +24,10 @@ these buttons for our use.
  *  is responsible for the initial application hardware configuration.
  */
 
-#include <LUFA/Drivers/Peripheral/Serial.h>
 #include "Joystick.h"
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
 
 uint16_t command_btn;
 uint8_t command_lx, command_ly, command_rx, command_ry, command_hat;
-
-void parseLine(char *line) {
-	char t[8];
-	uint16_t c; //char c[16];
-	sscanf(line, "%s %" SCNu16, t, &c);
-	if (strcasecmp(t, "BTN") == 0) {
-		command_btn = c;
-	} else if (strcasecmp(t, "LX") == 0) {
-		command_lx = c;
-	} else if (strcasecmp(t, "LY") == 0) {
-		command_ly = c;
-	} else if (strcasecmp(t, "RX") == 0) {
-		command_rx = c;
-	} else if (strcasecmp(t, "RY") == 0) {
-		command_ry = c;
-	} else if (strcasecmp(t, "HAT") == 0) {
-		command_hat = c;
-	} else {
-		command_btn |= SWITCH_RELEASE;
-		command_lx   = STICK_CENTER;
-		command_ly   = STICK_CENTER;
-		command_rx   = STICK_CENTER;
-		command_ry   = STICK_CENTER;
-		command_hat  = HAT_CENTER;
-	}
-}
-
-#define MAX_BUFFER 32
-char b[MAX_BUFFER];
-uint8_t l = 0;
-ISR(USART1_RX_vect) {
-	char c = fgetc(stdin);
-	if (Serial_IsSendReady()) {
-		printf("%c", c);
-	}
-	if (c == '\r') {
-		parseLine(b);
-		l = 0;
-		memset(b, 0, sizeof(b));
-	} else if (c != '\n' && l < MAX_BUFFER) {
-		b[l++] = c;
-	}
-}
 
 // Main entry point.
 int main(void) {
@@ -81,7 +35,6 @@ int main(void) {
   Serial_CreateStream(NULL);
 
   sei();
-  UCSR1B |= (1 << RXCIE1);
 
 	// We'll start by performing hardware and peripheral setup.
 	SetupHardware();
@@ -228,4 +181,3 @@ void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
 	ReportData->Button = command_btn;
 	
 }
-// vim: noexpandtab
