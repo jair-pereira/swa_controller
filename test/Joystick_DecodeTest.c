@@ -1,0 +1,324 @@
+/*
+Nintendo Switch Fightstick - Proof-of-Concept
+
+Based on the LUFA library's Low-Level Joystick Demo
+	(C) Dean Camera
+Based on the HORI's Pokken Tournament Pro Pad design
+	(C) HORI
+
+This project implements a modified version of HORI's Pokken Tournament Pro Pad
+USB descriptors to allow for the creation of custom controllers for the
+Nintendo Switch. This also works to a limited degree on the PS3.
+
+Since System Update v3.0.0, the Nintendo Switch recognizes the Pokken
+Tournament Pro Pad as a Pro Controller. Physical design limitations prevent
+the Pokken Controller from functioning at the same level as the Pro
+Controller. However, by default most of the descriptors are there, with the
+exception of Home and Capture. Descriptor modification allows us to unlock
+these buttons for our use.
+*/
+
+/** \file
+ *
+ *  Main source file for the Joystick demo. This file contains the main tasks of the demo and
+ *  is responsible for the initial application hardware configuration.
+ */
+
+ /*
+	* This modified version of Joystick.c is under GPL-3.0 or later
+		Major Changes:
+		 - (2026 May) Implemented timed commands
+		 - (2026 May) Implemented circular buffer for RX
+
+	* Copyright (C) 2026  Jair Pereira Junior
+	* SPDX-License-Identifier: GPL-3.0-or-later
+
+	* This program is free software: you can redistribute it and/or modify
+		it under the terms of the GNU General Public License as published by
+		the Free Software Foundation, either version 3 of the License, or any later version.
+
+		This program is distributed in the hope that it will be useful,
+		but WITHOUT ANY WARRANTY; without even the implied warranty of
+		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+		GNU General Public License for more details.
+
+		You should have received a copy of the GNU General Public License
+		along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ 
+ */
+
+#include "Timer1.h"
+#include "../Joystick.h"
+
+uint16_t command_btn;
+uint8_t command_lx, command_ly, command_rx, command_ry, command_hat;
+
+typedef struct {
+	uint8_t target;
+	uint16_t value;
+	uint32_t time_ms;
+} TimedCommands;
+
+#define cmd_size 6
+static volatile uint8_t cmd_next  = 0;
+static TimedCommands mycmds[cmd_size];
+static volatile uint32_t startTime;
+
+static void TimedCommandList_Init(TimedCommands *cmds){
+    uint8_t i = 0;
+
+	uint16_t value = 0x1000; // HOME
+	uint8_t b0 =  value       & 0xFF;
+	uint8_t b1 = (value >> 8) & 0xFF;
+
+	uint32_t time = 1000;
+	uint8_t t0 =  time        & 0xFF;
+	uint8_t t1 = (time >> 8)  & 0xFF;
+	uint8_t t2 = (time >> 16) & 0xFF;
+	uint8_t t3 = (time >> 24) & 0xFF;
+    cmds[i].target  = 0; // BTN
+	cmds[i].value   = ((uint16_t)b1 << 8)  | (uint16_t)b0;
+	cmds[i].time_ms = ((uint32_t)t3 << 24) | ((uint32_t)t2 << 16) | ((uint32_t)t1 << 8) | (uint32_t)t0;
+
+	i++;
+	value = 0x00; // RELEASE
+	b0 =  value       & 0xFF;
+	b1 = (value >> 8) & 0xFF;
+    time = 1060;
+	t0 =  time        & 0xFF;
+	t1 = (time >> 8)  & 0xFF;
+	t2 = (time >> 16) & 0xFF;
+	t3 = (time >> 24) & 0xFF;
+	cmds[i].target  = 0; // BTN	
+	cmds[i].value   = ((uint16_t)b1 << 8)  | (uint16_t)b0;
+	cmds[i].time_ms = ((uint32_t)t3 << 24) | ((uint32_t)t2 << 16) | ((uint32_t)t1 << 8) | (uint32_t)t0;
+
+	i++;
+	value = 0x02; // RIGHT
+	b0 =  value       & 0xFF;
+	b1 = (value >> 8) & 0xFF;
+    time = 1200;
+	t0 =  time        & 0xFF;
+	t1 = (time >> 8)  & 0xFF;
+	t2 = (time >> 16) & 0xFF;
+	t3 = (time >> 24) & 0xFF;
+	cmds[i].target  = 1; // HAT
+	cmds[i].value   = ((uint16_t)b1 << 8)  | (uint16_t)b0;
+	cmds[i].time_ms = ((uint32_t)t3 << 24) | ((uint32_t)t2 << 16) | ((uint32_t)t1 << 8) | (uint32_t)t0;
+
+	i++;
+	value = 0x08; // CENTER
+	b0 =  value       & 0xFF;
+	b1 = (value >> 8) & 0xFF;
+    time = 1260;
+	t0 =  time        & 0xFF;
+	t1 = (time >> 8)  & 0xFF;
+	t2 = (time >> 16) & 0xFF;
+	t3 = (time >> 24) & 0xFF;
+	cmds[i].target  = 1; // HAT
+	cmds[i].value   = ((uint16_t)b1 << 8)  | (uint16_t)b0;
+	cmds[i].time_ms = ((uint32_t)t3 << 24) | ((uint32_t)t2 << 16) | ((uint32_t)t1 << 8) | (uint32_t)t0;
+
+	i++;
+	value = 0x06; // LEFT
+	b0 =  value       & 0xFF;
+	b1 = (value >> 8) & 0xFF;
+    time = 1500;
+	t0 =  time        & 0xFF;
+	t1 = (time >> 8)  & 0xFF;
+	t2 = (time >> 16) & 0xFF;
+	t3 = (time >> 24) & 0xFF;
+	cmds[i].target  = 1; // HAT
+	cmds[i].value   = ((uint16_t)b1 << 8)  | (uint16_t)b0;
+	cmds[i].time_ms = ((uint32_t)t3 << 24) | ((uint32_t)t2 << 16) | ((uint32_t)t1 << 8) | (uint32_t)t0;
+
+	i++;
+	value = 0x08; // CENTER
+	b0 =  value       & 0xFF;
+	b1 = (value >> 8) & 0xFF;
+    time = 1560;
+	t0 =  time        & 0xFF;
+	t1 = (time >> 8)  & 0xFF;
+	t2 = (time >> 16) & 0xFF;
+	t3 = (time >> 24) & 0xFF;
+	cmds[i].target  = 1; // HAT
+	cmds[i].value   = ((uint16_t)b1 << 8)  | (uint16_t)b0;
+	cmds[i].time_ms = ((uint32_t)t3 << 24) | ((uint32_t)t2 << 16) | ((uint32_t)t1 << 8) | (uint32_t)t0;
+}
+
+static void UpdateState(void){
+	uint32_t elapsed = get_current_ms() - startTime;
+
+	if(cmd_next < cmd_size && mycmds[cmd_next].time_ms <= elapsed){
+		switch(mycmds[cmd_next].target){
+			case 0: 
+				command_btn = mycmds[cmd_next].value;
+				break;
+			case 1:  
+				command_hat  = (uint8_t)mycmds[cmd_next].value;
+				break;
+		}
+		cmd_next++;
+	}
+	if(cmd_next>=cmd_size){
+		cmd_next = 2;
+		startTime = get_current_ms();
+	}
+}
+
+// Main entry point.
+int main(void) {
+	sei();
+
+	// We'll start by performing hardware and peripheral setup.
+	SetupHardware();
+	// We'll then enable global interrupts for our use.
+	GlobalInterruptEnable();
+
+	// Timer test
+	TimedCommandList_Init(mycmds);
+	SetupTimer1();
+
+	// Once that's done, we'll enter an infinite loop.
+	startTime = get_current_ms();
+	for (;;)
+	{
+		UpdateState();
+		// We need to run our task to process and deliver data for our IN and OUT endpoints.
+		HID_Task();
+		// We also need to run the main USB management task.
+		USB_USBTask();
+	}
+}
+
+// Configures hardware and peripherals, such as the USB peripherals.
+void SetupHardware(void) {
+	// We need to disable watchdog if enabled by bootloader/fuses.
+	MCUSR &= ~(1 << WDRF);
+	wdt_disable();
+
+	// We need to disable clock division before initializing the USB hardware.
+	clock_prescale_set(clock_div_1);
+	// We can then initialize our hardware and peripherals, including the USB stack.
+
+	// The USB stack should be initialized last.
+	USB_Init();
+}
+
+// Fired to indicate that the device is enumerating.
+void EVENT_USB_Device_Connect(void) {
+	// We can indicate that we're enumerating here (via status LEDs, sound, etc.).
+}
+
+// Fired to indicate that the device is no longer connected to a host.
+void EVENT_USB_Device_Disconnect(void) {
+	// We can indicate that our device is not ready (via status LEDs, sound, etc.).
+}
+
+// Fired when the host set the current configuration of the USB device after enumeration.
+void EVENT_USB_Device_ConfigurationChanged(void) {
+	bool ConfigSuccess = true;
+
+	// We setup the HID report endpoints.
+	ConfigSuccess &= Endpoint_ConfigureEndpoint(JOYSTICK_OUT_EPADDR, EP_TYPE_INTERRUPT, JOYSTICK_EPSIZE, 1);
+	ConfigSuccess &= Endpoint_ConfigureEndpoint(JOYSTICK_IN_EPADDR, EP_TYPE_INTERRUPT, JOYSTICK_EPSIZE, 1);
+
+	// We can read ConfigSuccess to indicate a success or failure at this point.
+}
+
+// Process control requests sent to the device from the USB host.
+void EVENT_USB_Device_ControlRequest(void) {
+	// We can handle two control requests: a GetReport and a SetReport.
+	switch (USB_ControlRequest.bRequest)
+	{
+		// GetReport is a request for data from the device.
+		case HID_REQ_GetReport:
+			if (USB_ControlRequest.bmRequestType == (REQDIR_DEVICETOHOST | REQTYPE_CLASS | REQREC_INTERFACE))
+			{
+				// We'll create an empty report.
+				USB_JoystickReport_Input_t JoystickInputData;
+				// We'll then populate this report with what we want to send to the host.
+				GetNextReport(&JoystickInputData);
+				// Since this is a control endpoint, we need to clear up the SETUP packet on this endpoint.
+				Endpoint_ClearSETUP();
+				// Once populated, we can output this data to the host. We do this by first writing the data to the control stream.
+				Endpoint_Write_Control_Stream_LE(&JoystickInputData, sizeof(JoystickInputData));
+				// We then acknowledge an OUT packet on this endpoint.
+				Endpoint_ClearOUT();
+			}
+
+			break;
+		case HID_REQ_SetReport:
+			if (USB_ControlRequest.bmRequestType == (REQDIR_HOSTTODEVICE | REQTYPE_CLASS | REQREC_INTERFACE))
+			{
+				// We'll create a place to store our data received from the host.
+				USB_JoystickReport_Output_t JoystickOutputData;
+				// Since this is a control endpoint, we need to clear up the SETUP packet on this endpoint.
+				Endpoint_ClearSETUP();
+				// With our report available, we read data from the control stream.
+				Endpoint_Read_Control_Stream_LE(&JoystickOutputData, sizeof(JoystickOutputData));
+				// We then send an IN packet on this endpoint.
+				Endpoint_ClearIN();
+			}
+
+			break;
+	}
+}
+
+// Process and deliver data from IN and OUT endpoints.
+void HID_Task(void) {
+	// If the device isn't connected and properly configured, we can't do anything here.
+	if (USB_DeviceState != DEVICE_STATE_Configured)
+	  return;
+
+	// We'll start with the OUT endpoint.
+	Endpoint_SelectEndpoint(JOYSTICK_OUT_EPADDR);
+	// We'll check to see if we received something on the OUT endpoint.
+	if (Endpoint_IsOUTReceived())
+	{
+		// If we did, and the packet has data, we'll react to it.
+		if (Endpoint_IsReadWriteAllowed())
+		{
+			// We'll create a place to store our data received from the host.
+			USB_JoystickReport_Output_t JoystickOutputData;
+			// We'll then take in that data, setting it up in our storage.
+			Endpoint_Read_Stream_LE(&JoystickOutputData, sizeof(JoystickOutputData), NULL);
+			// At this point, we can react to this data.
+			// However, since we're not doing anything with this data, we abandon it.
+		}
+		// Regardless of whether we reacted to the data, we acknowledge an OUT packet on this endpoint.
+		Endpoint_ClearOUT();
+	}
+
+	// We'll then move on to the IN endpoint.
+	Endpoint_SelectEndpoint(JOYSTICK_IN_EPADDR);
+	// We first check to see if the host is ready to accept data.
+	if (Endpoint_IsINReady())
+	{
+		// We'll create an empty report.
+		USB_JoystickReport_Input_t JoystickInputData;
+		// We'll then populate this report with what we want to send to the host.
+		GetNextReport(&JoystickInputData);
+		// Once populated, we can output this data to the host. We do this by first writing the data to the control stream.
+		Endpoint_Write_Stream_LE(&JoystickInputData, sizeof(JoystickInputData), NULL);
+		// We then send an IN packet on this endpoint.
+		Endpoint_ClearIN();
+
+		/* Clear the report data afterwards */
+		// memset(&JoystickInputData, 0, sizeof(JoystickInputData));
+	}
+}
+
+// Prepare the next report for the host.
+void GetNextReport(USB_JoystickReport_Input_t* const ReportData) {
+	/* Clear the report contents */
+	memset(ReportData, 0, sizeof(USB_JoystickReport_Input_t));
+	
+	ReportData->LX = command_lx;
+	ReportData->LY = command_ly;
+	ReportData->RX = command_rx;
+	ReportData->RY = command_ry;
+	ReportData->HAT = command_hat;
+	ReportData->Button = command_btn;
+	
+}
