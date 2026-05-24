@@ -60,9 +60,7 @@ typedef struct {
 } TimedCommands;
 
 #define cmd_size 6
-static volatile uint8_t cmd_next  = 0;
 static TimedCommands mycmds[cmd_size];
-static volatile uint32_t startTime;
 
 static void TimedCommandList_Init(TimedCommands *cmds){
     uint8_t i = 0;
@@ -123,7 +121,7 @@ static void TimedCommandList_Init(TimedCommands *cmds){
 	value = 0x06; // LEFT
 	b0 =  value       & 0xFF;
 	b1 = (value >> 8) & 0xFF;
-    time = 1500;
+    time = 1400;
 	t0 =  time        & 0xFF;
 	t1 = (time >> 8)  & 0xFF;
 	t2 = (time >> 16) & 0xFF;
@@ -136,7 +134,7 @@ static void TimedCommandList_Init(TimedCommands *cmds){
 	value = 0x08; // CENTER
 	b0 =  value       & 0xFF;
 	b1 = (value >> 8) & 0xFF;
-    time = 1560;
+    time = 1460;
 	t0 =  time        & 0xFF;
 	t1 = (time >> 8)  & 0xFF;
 	t2 = (time >> 16) & 0xFF;
@@ -146,23 +144,23 @@ static void TimedCommandList_Init(TimedCommands *cmds){
 	cmds[i].time_ms = ((uint32_t)t3 << 24) | ((uint32_t)t2 << 16) | ((uint32_t)t1 << 8) | (uint32_t)t0;
 }
 
-static void UpdateState(void){
-	uint32_t elapsed = get_current_ms() - startTime;
+static void UpdateState(TimedCommands *cmds, uint8_t *idx_next, uint32_t *start_time){
+	uint32_t elapsed = get_current_ms() - *start_time;
 
-	if(cmd_next < cmd_size && mycmds[cmd_next].time_ms <= elapsed){
-		switch(mycmds[cmd_next].target){
+	if(*idx_next < cmd_size && cmds[*idx_next].time_ms <= elapsed){
+		switch(cmds[*idx_next].target){
 			case 0: 
-				command_btn = mycmds[cmd_next].value;
+				command_btn = cmds[*idx_next].value;
 				break;
 			case 1:  
-				command_hat  = (uint8_t)mycmds[cmd_next].value;
+				command_hat  = (uint8_t)cmds[*idx_next].value;
 				break;
 		}
-		cmd_next++;
+		(*idx_next)++;
 	}
-	if(cmd_next>=cmd_size){
-		cmd_next = 2;
-		startTime = get_current_ms();
+	if(*idx_next>=cmd_size){
+		*idx_next = 2;
+		*start_time = get_current_ms();
 	}
 }
 
@@ -176,14 +174,16 @@ int main(void) {
 	GlobalInterruptEnable();
 
 	// Timer test
+	uint32_t start_time;
+	uint8_t cmd_next  = 0;
 	TimedCommandList_Init(mycmds);
 	SetupTimer1();
 
+	start_time = get_current_ms();
 	// Once that's done, we'll enter an infinite loop.
-	startTime = get_current_ms();
 	for (;;)
 	{
-		UpdateState();
+		UpdateState(mycmds, &cmd_next, &start_time);
 		// We need to run our task to process and deliver data for our IN and OUT endpoints.
 		HID_Task();
 		// We also need to run the main USB management task.
