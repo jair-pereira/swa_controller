@@ -28,6 +28,7 @@ these buttons for our use.
 	* This modified version of Joystick.c is under GPL-3.0 or later
 		Major Changes:
 		 - (2026 May) Implemented timed commands
+		 - (2026 May) Implemented circular buffer for RX
 
 	* Copyright (C) 2026  Jair Pereira Junior
 	* SPDX-License-Identifier: GPL-3.0-or-later
@@ -59,11 +60,11 @@ typedef struct {
 } TimedCommands;
 
 #define cmd_size 6
-static uint8_t cmd_next  = 0;
+static volatile uint8_t cmd_next  = 0;
 static TimedCommands mycmds[cmd_size];
 static volatile uint32_t startTime;
 
-void TimedCommandList_Init(TimedCommands *cmds){
+static void TimedCommandList_Init(TimedCommands *cmds){
     uint8_t i = 0;
 	cmds[i].target  = 0; // BTN
 	cmds[i].value   = 0x1000; // HOME
@@ -95,7 +96,7 @@ void TimedCommandList_Init(TimedCommands *cmds){
 	cmds[i].time_ms = 6060;
 }
 
-void UpdateState(void){
+static void UpdateState(void){
 	uint32_t elapsed = get_current_ms() - startTime;
 
 	if(cmd_next < cmd_size && mycmds[cmd_next].time_ms <= elapsed){
