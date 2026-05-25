@@ -55,8 +55,9 @@ docker run -it --rm -v $(pwd):/work gccavr make
 todo
 
 ## Todo
-- [X] Timer
-- [ ] Add a datastruct to store a list of commands to be executed
+- [X] Implement a timer
+- [X] Implement a circular queue for incoming rx packets
+- [ ] Implement a circular queue for decoded rx frames
 - [ ] Remove serial packet parsing away from the ISR
 - [ ] Bytes for the serial packets instead of strings
 - [ ] AVR should receive commands in the form [TARGET][VALUE][TIME_MS]
